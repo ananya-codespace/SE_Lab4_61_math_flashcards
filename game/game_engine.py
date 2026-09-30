@@ -35,14 +35,22 @@ class GameEngine:
         self.generate_new_card()
 
     def generate_new_card(self):
-        self.num_a = random.randint(3, 15)
-        self.num_b = random.randint(2, 12)
-        self.operator = random.choice(["+", "-", "*"])
-        if self.operator == "-" and self.num_a < self.num_b:
-            self.num_a, self.num_b = self.num_b, self.num_a
+        self.operator = random.choice(["+", "-", "*", "/"])
+
+        if self.operator == "/":
+            # build the dividend from divisor * quotient, so there is never a remainder
+            divisor = random.randint(2, 12)    # 2+ avoids trivial "x / 1"
+            quotient = random.randint(2, 12)
+            self.num_a = divisor * quotient    # dividend
+            self.num_b = divisor
+        else:
+            self.num_a = random.randint(3, 15)
+            self.num_b = random.randint(2, 12)
+            if self.operator == "-" and self.num_a < self.num_b:
+                self.num_a, self.num_b = self.num_b, self.num_a
 
         self.input_box.clear()
-        self.time_left = self.time_limit   # new card = fresh timer
+        self.time_left = self.time_limit
 
     def compute_expected_answer(self):
         if self.operator == "+":
@@ -51,6 +59,8 @@ class GameEngine:
             return self.num_a - self.num_b
         if self.operator == "*":
             return self.num_a * self.num_b
+        if self.operator == "/":
+            return self.num_a // self.num_b
         raise ValueError(f"Unknown operator: {self.operator}")
 
     def get_multiplier(self):

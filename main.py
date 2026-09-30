@@ -13,17 +13,19 @@ def main():
     engine = GameEngine(WIDTH, HEIGHT)
 
     running = True
+    dt = 0
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
             engine.handle_event(event)
 
-        engine.update()
+        engine.update(dt)
         engine.render(screen)
 
         pygame.display.flip()
-        clock.tick(FPS)
+        # ms -> seconds, clamped so dragging the window can't instantly expire a card
+        dt = min(clock.tick(FPS) / 1000, 0.1)
 
     pygame.quit()
 

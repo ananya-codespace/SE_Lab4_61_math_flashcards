@@ -26,6 +26,9 @@ class GameEngine:
         self.font_card = pygame.font.SysFont(None, 56)
         self.font_btn = pygame.font.SysFont(None, 24)
 
+        self.time_limit = 10.0          # seconds per card
+        self.time_left = self.time_limit
+
         self.generate_new_card()
 
     def generate_new_card(self):
@@ -36,6 +39,7 @@ class GameEngine:
             self.num_a, self.num_b = self.num_b, self.num_a
 
         self.input_box.clear()
+        self.time_left = self.time_limit   # new card = fresh timer
 
     def compute_expected_answer(self):
         if self.operator == "+":
@@ -76,8 +80,17 @@ class GameEngine:
             if self.submit_btn.collidepoint(event.pos):
                 self.submit_answer()
 
-    def update(self):
-        pass
+    def update(self, dt):
+        self.time_left -= dt
+        if self.time_left <= 0:
+            self.handle_timeout()
+
+    def handle_timeout(self):
+        expected = self.compute_expected_answer()   # grab it BEFORE the card changes
+        self.total_attempts += 1
+        self.feedback_msg = f"TIME'S UP! Answer was {expected}."
+        self.feedback_color = (240, 75, 75)
+        self.generate_new_card()                    # also resets the timer
 
     def render(self, screen):
         screen.fill((25, 29, 37))
@@ -95,6 +108,23 @@ class GameEngine:
         card_str = f"{self.num_a}  {self.operator}  {self.num_b}"
         card_surf = self.font_card.render(card_str, True, (25, 30, 42))
         screen.blit(card_surf, (card_rect.centerx - card_surf.get_width() // 2, card_rect.centery - card_surf.get_height() // 2))
+
+        # --- timer bar ---
+        bar_rect = pygame.Rect(card_rect.x, 212, card_rect.width, 8)
+        ratio = max(self.time_left / self.time_limit, 0)
+
+        if ratio < 0.3:
+            bar_color = (240, 75, 75)      # red
+        elif ratio < 0.6:
+            bar_color = (240, 175, 40)     # amber
+        else:
+            bar_color = (80, 230, 110)     # green
+
+        pygame.draw.rect(screen, (60, 66, 80), bar_rect, border_radius=4)   # track
+        fill_w = int(bar_rect.width * ratio)
+        if fill_w > 0:
+            fill_rect = pygame.Rect(bar_rect.x, bar_rect.y, fill_w, bar_rect.height)
+            pygame.draw.rect(screen, bar_color, fill_rect, border_radius=4)
 
         self.input_box.render(screen)
 

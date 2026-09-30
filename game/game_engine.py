@@ -29,6 +29,9 @@ class GameEngine:
         self.time_limit = 10.0          # seconds per card
         self.time_left = self.time_limit
 
+        self.streak = 0
+        self.correct_count = 0   # correct answers, separate from points
+
         self.generate_new_card()
 
     def generate_new_card(self):
@@ -50,6 +53,19 @@ class GameEngine:
             return self.num_a * self.num_b
         raise ValueError(f"Unknown operator: {self.operator}")
 
+    def get_multiplier(self):
+        if self.streak >= 5:
+            return 3
+        if self.streak >= 3:
+            return 2
+        return 1
+    # streak 1,2 -> 1x | 3,4 -> 2x | 5+ -> 3x
+
+    def register_miss(self):
+        """Single place for 'the player failed this card' (wrong answer or timeout)."""
+        self.total_attempts += 1
+        self.streak = 0
+
     def submit_answer(self):
         val_str = self.input_box.text.strip()
         if not val_str or val_str == "-":
@@ -59,15 +75,19 @@ class GameEngine:
 
         user_answer = int(val_str)
         expected = self.compute_expected_answer()
-        self.total_attempts += 1
 
         if user_answer == expected:
-            self.score += 1
-            self.feedback_msg = f"CORRECT! {self.num_a} {self.operator} {self.num_b} = {expected}"
+            self.total_attempts += 1
+            self.correct_count += 1
+            self.streak += 1                 # increment FIRST...
+            mult = self.get_multiplier()     # ...so the 3rd correct answer already gets 2x
+            self.score += mult
+            self.feedback_msg = f"CORRECT! {self.num_a} {self.operator} {self.num_b} = {expected}  (+{mult})"
             self.feedback_color = (80, 230, 110)
             self.generate_new_card()
         else:
-            self.feedback_msg = f"WRONG! Expected {expected}."
+            self.register_miss()
+            self.feedback_msg = f"WRONG! Expected {expected}. Streak lost."
             self.feedback_color = (240, 75, 75)
             self.input_box.clear()
 
@@ -86,19 +106,21 @@ class GameEngine:
             self.handle_timeout()
 
     def handle_timeout(self):
-        expected = self.compute_expected_answer()   # grab it BEFORE the card changes
-        self.total_attempts += 1
+        expected = self.compute_expected_answer()   # before the card changes
+        self.register_miss()
         self.feedback_msg = f"TIME'S UP! Answer was {expected}."
         self.feedback_color = (240, 75, 75)
-        self.generate_new_card()                    # also resets the timer
-
+        self.generate_new_card()
+        
     def render(self, screen):
         screen.fill((25, 29, 37))
 
         title_surf = self.font_title.render("Math Flashcards Arena", True, (245, 245, 245))
         screen.blit(title_surf, (self.width // 2 - title_surf.get_width() // 2, 18))
 
-        score_surf = self.font_hud.render(f"Score: {self.score} / {self.total_attempts}", True, (255, 220, 80))
+        score_surf = self.font_hud.render(
+            f"Score: {self.score}   Correct: {self.correct_count}/{self.total_attempts}",
+            True, (255, 220, 80))
         screen.blit(score_surf, (self.width // 2 - score_surf.get_width() // 2, 58))
 
         card_rect = pygame.Rect(self.width // 2 - 130, 95, 260, 110)
@@ -135,3 +157,8 @@ class GameEngine:
 
         msg_surf = self.font_hud.render(self.feedback_msg, True, self.feedback_color)
         screen.blit(msg_surf, (self.width // 2 - msg_surf.get_width() // 2, 295))
+
+        mult = self.get_multiplier()
+        streak_color = (80, 230, 110) if mult > 1 else (200, 205, 215)
+        streak_surf = self.font_hud.render(f"Streak: {self.streak}  (x{mult})", True, streak_color)
+        screen.blit(streak_surf, (self.width // 2 - streak_surf.get_width() // 2, 325))
